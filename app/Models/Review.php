@@ -2,21 +2,21 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use App\Models\Spot;
-
 
 class Review extends Model
 {
-    protected $fillable = ['spot_id','rating','comment'];
+    use HasFactory;
 
-public function spot()
-{
-    return $this->belongsTo(Spot::class);
+    protected $fillable = [
+        'spot_id',
+        'content',
+        // 'rating', // rating を使用する場合
+    ];
+
+    public function spot()
+    {
+        return $this->belongsTo(Spot::class);
+    }
 }
-
-
-}
-
-
-

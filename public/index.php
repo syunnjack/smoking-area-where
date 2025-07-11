@@ -19,5 +19,3 @@ $app = require_once __DIR__.'/../bootstrap/app.php';
 
 $app->handleRequest(Request::capture());
 
-var_dump(realpath(__DIR__ . '/../vendor/autoload.php'));
-exit;

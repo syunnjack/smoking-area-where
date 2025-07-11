@@ -2,21 +2,32 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use App\Models\Review; 
-
 
 class Spot extends Model
 {
-    protected $fillable = ['name', 'description','congestion', 'lat', 'lng'];
+    use HasFactory;
 
-    
+    protected $fillable = [
+        'name',
+        'description',
+        'lat',
+        'lng',
+        'area',
+        'congestion_reports',
+        'average_congestion',
+        'views',
+        'likes_count',
+    ];
+
+    protected $casts = [
+        'congestion_reports' => 'array',
+        'average_congestion' => 'float',
+    ];
+
     public function reviews()
-{
-    //return $this->hasMany(Review::class);
-    return $this->hasMany(\App\Models\Review::class);
-
-
-}
-
+    {
+        return $this->hasMany(Review::class);
+    }
 }

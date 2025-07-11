@@ -4,119 +4,155 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\Spot;
+use App\Models\Review; // Reviewモデルも使う場合
 
-
+// CongestionHelper が存在しない場合、一時的にここで定義するか、別途ファイルを作成
+// 例えば app/Helpers/CongestionHelper.php とし、namespace App\Helpers; をつける
+// class CongestionHelper {
+//     public static function getText($avg) {
+//         if ($avg === null || is_array($avg) || is_object($avg)) return '不明'; // 変更: is_array/is_objectのチェックを追加
+//         if ($avg >= 3.5) return '非常に混雑';
+//         if ($avg >= 2.5) return '混雑';
+//         if ($avg >= 1.5) return 'やや混雑';
+//         return '空いている';
+//     }
+// }
 
 class SpotController extends Controller
 {
-    
     public function index(Request $request)
-{
-    $query = Spot::query();
+    {
+        $query = Spot::query();
 
-    // フィルター処理
-    if ($request->filled('area')) {
-        $query->where('area', $request->area);
-    }
-    if ($request->filled('congestion')) {
-        $query->where('congestion', $request->congestion);
-    }
-
-    // 一度全スポット取得（orderによって並べ替える）
-    $spots = $query->get();
-
-    // 並び替え処理（nearby or popular）
-    if ($request->filled('order')) {
-        if ($request->order === 'nearby' && $request->has(['lat', 'lng'])) {
-            $lat = floatval($request->lat);
-            $lng = floatval($request->lng);
-            $spots = $spots->sortBy(function ($spot) use ($lat, $lng) {
-                return pow($spot->lat - $lat, 2) + pow($spot->lng - $lng, 2); // 近い順（距離の2乗）
-            });
-        } elseif ($request->order === 'popular' && $spots->first() && isset($spots->first()->views)) {
-            $spots = $spots->sortByDesc('views');
+        // フィルター処理
+        if ($request->filled('area')) {
+            $query->where('area', $request->area);
         }
+        // 混雑度は、reportsがあればaverage_congestionでフィルタリング
+        if ($request->filled('congestion')) {
+            if ($request->congestion === 'empty') {
+                $query->whereBetween('average_congestion', [1.0, 1.5]);
+            } elseif ($request->congestion === 'slightly_crowded') {
+                $query->whereBetween('average_congestion', [1.5, 2.5]);
+            } elseif ($request->congestion === 'crowded') {
+                $query->whereBetween('average_congestion', [2.5, 3.5]);
+            } elseif ($request->congestion === 'very_crowded') {
+                $query->whereBetween('average_congestion', [3.5, 4.0]);
+            }
+        }
+
+        $spots = $query->get(); // まずフィルターを適用して取得
+
+        // 並び替え処理（nearby or popular）
+        if ($request->filled('order')) {
+            if ($request->order === 'nearby' && $request->has(['lat', 'lng'])) {
+                $lat = floatval($request->lat);
+                $lng = floatval($request->lng);
+                $spots = $spots->sortBy(function ($spot) use ($lat, $lng) {
+                    // 緯度経度から距離を計算（より正確な計算が必要ならHaversine式などを使用）
+                    return pow($spot->lat - $lat, 2) + pow($spot->lng - $lng, 2);
+                });
+            } elseif ($request->order === 'popular') {
+                // popular順はviewsで並び替え。viewsフィールドがない場合は注意
+                $spots = $spots->sortByDesc('views');
+            } elseif ($request->order === 'likes') { // いいねが多い順
+                $spots = $spots->sortByDesc('likes_count');
+            } elseif ($request->order === 'reviews') { // 口コミが多い順 (Reviewモデルのリレーションが必要)
+                $spots = $spots->sortByDesc(function($spot) {
+                    return $spot->reviews->count();
+                });
+            }
+        }
+
+        $areas = Spot::distinct()->pluck('area'); // エリアフィルター用
+
+        return view('spots.index', compact('spots', 'areas'));
     }
-    if ($request->order === 'popular') {
-    $spots = $spots->sortByDesc('views');
-}
 
+    public function create()
+    {
+        $spots = Spot::all(); // DBから全件取得
+        return view('spots.create',compact('spots'));
+    }
 
+    public function store(Request $request)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'description' => 'nullable|string',
+            'area' => 'nullable|string|max:255',
+            'lat' => 'required|numeric|between:-90,90',
+            'lng' => 'required|numeric|between:-180,180',
+        ]);
 
-    $areas = Spot::distinct()->pluck('area');
+        Spot::create($validated);
 
-    return view('spots.index', compact('spots', 'areas'));
+        return redirect()->route('spots.thanks');
+    }
 
+    public function show(Spot $spot)
+    {
+        // 口コミを最新順（created_at の降順）で読み込むように修正
+    $spot->load(['reviews' => function ($query) {
+        $query->orderBy('created_at', 'desc');
+    }]);
 
-}
-
-public function create()
-{
-    $spots = Spot::all();
-    return view('spots.create',compact('spots'));
-}
-
-public function store(Request $request)
-{
-    
-    $validated = $request->validate([
-        'name' => 'required|string|max:255',
-        'description' => 'nullable|string',
-        'congestion' => 'nullable|string|max:255',
-        'lat' => 'required|numeric',
-        'lng' => 'required|numeric',
-        // 他の項目もあれば追記
-    ]);
-
-    Spot::create($validated);
-
-    return redirect()->route('spots.index')->with('success', '喫煙所を登録しました');
-
-
-}
-public function show(Spot $spot)
-{
-    
-    $spot->increment('views');
-    $spot->refresh();          // ✅ そのあと最新データを取得
-
-
+    // ビューにデータを渡す
     return view('spots.show', compact('spot'));
-}
+    }
 
+    public function edit(Spot $spot)
+    {
+        return view('spots.edit', compact('spot'));
+    }
 
+    public function update(Request $request, Spot $spot)
+    {
+        $data = $request->validate([
+            'description' => 'nullable|string',
+            'area' => 'nullable|string|max:255',
+            'congestion' => 'nullable|string|in:空いてる,やや混み,混んでる,非常に混んでる',
+        ]);
 
-public function edit(Spot $spot)
-{
-    return view('spots.edit', compact('spot'));
-}
+        $spot->update($data);
 
-public function update(Request $request, Spot $spot)
-{
-    //$spot->update($request->only(['name', 'description']));
-    $congestionOptions = ['空いてる', 'やや混み', '混んでる'];
-    
+        return redirect()
+            ->route('spots.show', $spot->id)
+            ->with('success', '喫煙所を更新しました。');
+    }
 
-    $data = $request->validate([
+    /**
+     * 混雑度を匿名ユーザーから報告を受け付ける
+     */
+    public function reportCongestion(Request $request, Spot $spot)
+    {
+        $validated = $request->validate([
+            'level' => 'required|in:empty,slightly_crowded,crowded,very_crowded',
+        ]);
 
+        $levelMap = ['empty' => 1, 'slightly_crowded' => 2, 'crowded' => 3, 'very_crowded' => 4];
+        $numericLevel = $levelMap[$validated['level']];
 
-    'name' => 'required|string|max:255',
-    'description' => 'nullable|string',
-    'area' => 'nullable|string',
-    'lat' => 'required|numeric',
-    'lng' => 'required|numeric',
-    'congestion' => 'nullable|string|in:' . implode(',', $congestionOptions),
-]);
-    $spot->update($data); // ✅ 保存を実行する！
+        $reports = json_decode($spot->congestion_reports ?? '[]', true);
+        $reports[] = $numericLevel;
 
+        $average = array_sum($reports) / count($reports);
 
+        $spot->congestion_reports = json_encode($reports);
+        $spot->average_congestion = round($average, 2);
+        $spot->save();
 
+        return response()->json(['average_congestion' => $spot->average_congestion]);
+    }
 
-    return redirect()
-    ->route('spots.show', $spot->id)
-    ->with('success', '喫煙所を更新しました。');
-}
+    /**
+     * 喫煙所に「いいね！」を追加する
+     */
+    public function like(Spot $spot)
+    {
+        $spot->increment('likes_count');
+        $spot->refresh();
 
-
-
+        return response()->json(['likes_count' => $spot->likes_count]);
+    }
 }

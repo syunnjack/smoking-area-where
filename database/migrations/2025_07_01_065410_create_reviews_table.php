@@ -14,8 +14,9 @@ return new class extends Migration
         Schema::create('reviews', function (Blueprint $table) {
             $table->id();
             $table->foreignId('spot_id')->constrained()->onDelete('cascade');
-            $table->tinyInteger('rating');
-            $table->string('comment')->nullable();
+            $table->text('content')->nullable(); // content カラムを nullable で追加
+            // もし数値評価 (rating) も追加するなら、この行も追加
+            // $table->integer('rating')->nullable();
             $table->timestamps();
         });
     }

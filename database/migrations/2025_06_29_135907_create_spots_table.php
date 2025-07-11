@@ -13,10 +13,15 @@ return new class extends Migration
     {
         Schema::create('spots', function (Blueprint $table) {
             $table->id();
-            $table->string('name');          // 喫煙所名
-            $table->text('description');     // 説明
-            $table->decimal('lat', 10, 7);   // 緯度
-            $table->decimal('lng', 10, 7);   // 経度
+            $table->string('name');
+            $table->text('description')->nullable();
+            $table->string('lat')->nullable();
+            $table->string('lng')->nullable();
+            $table->string('area')->nullable();
+            $table->json('congestion_reports')->nullable(); // JSON型で混雑度報告を保存
+            $table->float('average_congestion')->nullable(); // 平均混雑度
+            $table->unsignedInteger('views')->default(0); // views カラムを追加
+            $table->unsignedInteger('likes_count')->default(0); // likes_count カラムを追加
             $table->timestamps();
         });
     }

@@ -38,21 +38,27 @@ Route::get('/', [SpotController::class, 'index'])->name('spots.index');
 
 // 新しい喫煙所の投稿
 Route::get('/create', [SpotController::class, 'create'])->name('spots.create');
-Route::post('/spots', [SpotController::class, 'store'])->name('spots.store');
+Route::post('/spots', [SpotController::class, 'store'])->name('spots.store')->middleware('throttle:5,1');
 
 // 個別喫煙所の詳細表示
 Route::get('/spots/{spot}', [SpotController::class, 'show'])->name('spots.show');
 
 // 喫煙所へのコメント・評価（いいね！）投稿（匿名OK）
-Route::post('/spots/{spot}/reviews', [ReviewController::class, 'store'])->name('spots.reviews.store');
+Route::post('/spots/{spot}/reviews', [ReviewController::class, 'store'])->name('spots.reviews.store')->middleware('throttle:10,1');
 
 // 喫煙所に「いいね！」を投稿（匿名OK）
-Route::post('/spots/{spot}/like', [SpotController::class, 'like'])->name('spots.like');
+Route::post('/spots/{spot}/like', [SpotController::class, 'like'])->name('spots.like')->middleware('throttle:30,1');
 
 // 混雑度報告（匿名OK）
-Route::post('/spots/{spot}/congestion', [SpotController::class, 'reportCongestion'])->name('spots.congestion.report');
+Route::post('/spots/{spot}/congestion', [SpotController::class, 'reportCongestion'])->name('spots.congestion.report')->middleware('throttle:30,1');
 
 
 Route::view('/thanks', 'spots.thanks')->name('spots.thanks'); // 投稿完了ページなど
+
+// このサイトについて
+Route::view('/about', 'about')->name('about');
+
+// SEO用ファイル
+Route::get('/sitemap.xml', [SpotController::class, 'sitemap'])->name('sitemap');
 
 require __DIR__.'/auth.php'; // 認証関連のルート

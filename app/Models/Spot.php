@@ -15,6 +15,7 @@ class Spot extends Model
         'lat',
         'lng',
         'area',
+        'congestion',
         'congestion_reports',
         'average_congestion',
         'views',

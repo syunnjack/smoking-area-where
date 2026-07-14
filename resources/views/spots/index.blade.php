@@ -1,17 +1,44 @@
 @extends('layouts.plain')
 
-@section('title', '喫煙所マップ')
+@section('title', config('app.name') . ' | 近くの喫煙所を地図から探す・投稿する')
+@section('description', '全国の喫煙所を地図から検索できる投稿型マップです。エリア・混雑度で絞り込み、現在地から近い順や人気順で表示。新しい喫煙所は誰でも匿名で投稿できます。')
+
+@push('structured-data')
+<script type="application/ld+json">
+{!! json_encode([
+  '@context' => 'https://schema.org',
+  '@type' => 'WebSite',
+  'name' => config('app.name'),
+  'url' => url('/'),
+  'description' => '全国の喫煙所を地図から検索できる投稿型マップ。混雑度・いいね・口コミを確認できる。',
+], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) !!}
+</script>
+<script type="application/ld+json">
+{!! json_encode([
+  '@context' => 'https://schema.org',
+  '@type' => 'ItemList',
+  'itemListElement' => $spots->take(50)->values()->map(function ($spot, $i) {
+      return [
+          '@type' => 'ListItem',
+          'position' => $i + 1,
+          'url' => url("/spots/{$spot->id}"),
+          'name' => $spot->name,
+      ];
+  })->all(),
+], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) !!}
+</script>
+@endpush
 
 @section('content')
 <div class="container my-4">
   {{-- 見出しと導線 --}}
   <div class="text-center mb-4">
-    <h2 class="fw-bold">🚬 喫煙所マップ</h2>
+    <h1 class="fw-bold h3">🚬 喫煙所マップ</h1>
     <p class="text-muted">現在地から探す・空いている場所を見つける・誰でも投稿できる地図</p>
     <div class="d-flex justify-content-center gap-3 flex-wrap">
       <a href="{{ url('/spots?order=nearby') }}" class="btn btn-primary shadow-sm px-4">📍 近くの喫煙所</a>
       <a href="{{ url('/spots?order=popular') }}" class="btn btn-success shadow-sm px-4">🏆 人気順で見る</a>
-      <a href="{{ url('/create') }}" class="btn btn-danger shadow-sm px-4">➕ 喫煙所を投稿</a>
+      <a href="{{ route('spots.create') }}" class="btn btn-danger shadow-sm px-4">➕ 喫煙所を投稿</a>
     </div>
   </div>
 
@@ -30,9 +57,10 @@
       <label class="form-label">混雑度</label>
       <select name="congestion" class="form-select">
         <option value="">すべて</option>
-        <option value="空いている" @selected(request('congestion')=='空いている')>空いている</option>
-        <option value="やや混み" @selected(request('congestion')=='やや混み')>やや混み</option>
-        <option value="混雑" @selected(request('congestion')=='混雑')>混雑</option>
+        <option value="empty" @selected(request('congestion')=='empty')>空いている</option>
+        <option value="slightly_crowded" @selected(request('congestion')=='slightly_crowded')>やや混雑</option>
+        <option value="crowded" @selected(request('congestion')=='crowded')>混雑</option>
+        <option value="very_crowded" @selected(request('congestion')=='very_crowded')>非常に混雑</option>
       </select>
     </div>
     <div class="col-md-2 align-self-end">
@@ -46,18 +74,18 @@
       <div id="map" style="height: 460px;" class="rounded shadow-sm border"></div>
     </div>
     <div class="col-lg-5">
-      <h5 class="mb-3">📋 投稿スポット一覧</h5>
+      <h2 class="h5 mb-3">📋 投稿スポット一覧</h2>
       <div class="overflow-auto" style="max-height: 460px;">
         @forelse($spots as $spot)
           <div class="card mb-3 border-0 shadow-sm">
             <div class="card-body">
-              <h6 class="card-title d-flex justify-content-between mb-1">
+              <h3 class="card-title h6 d-flex justify-content-between mb-1">
                 <a href="{{url("/spots/{$spot->id}")}}" class="text-decoration-none fw-semibold">
                 {{ $spot->name }}
                 <span class="badge bg-secondary">{{ $spot->area ?? '未設定' }}</span>
-              </h6>
+              </h3>
               <p class="mb-1 text-muted small">{{ $spot->description }}</p>
-              <small class="text-muted">混雑度：{{ $spot->congestion ?? '未登録' }} ／ {{ $spot->created_at->diffForHumans() }}</small>
+              <small class="text-muted">混雑度：{{ \App\Helpers\CongestionHelper::getText($spot->average_congestion) }} ／ {{ $spot->created_at->diffForHumans() }}</small>
             </div>
           </div>
         @empty
@@ -84,11 +112,11 @@
     // マーカー描画（Blade ループ）
     @foreach($spots as $spot)
       @php
-        $color = match($spot->congestion ?? '') {
-          '混雑' => 'red',
-          'やや混み' => 'orange',
-          '空いている' => 'green',
-          default => 'blue',
+        $color = match(true) {
+          $spot->average_congestion === null => 'blue',
+          $spot->average_congestion >= 2.5 => 'red',
+          $spot->average_congestion >= 1.5 => 'orange',
+          default => 'green',
         };
       @endphp
 
@@ -98,7 +126,7 @@
         fillColor: '{{ $color }}',
         fillOpacity: 0.9
       }).addTo(map)
-        .bindPopup(`<strong>{{ $spot->name }}</strong><br>{{ $spot->description }}<br><small>混雑度：{{ $spot->congestion ?? '未登録' }}</small>`);
+        .bindPopup(`<strong>{{ $spot->name }}</strong><br>{{ $spot->description }}<br><small>混雑度：{{ \App\Helpers\CongestionHelper::getText($spot->average_congestion) }}</small>`);
     @endforeach
 
     // 📍現在地ボタン機能

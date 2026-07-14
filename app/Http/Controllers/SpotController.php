@@ -2,21 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\ContentModeration;
 use Illuminate\Http\Request;
 use App\Models\Spot;
-use App\Models\Review; // Reviewモデルも使う場合
-
-// CongestionHelper が存在しない場合、一時的にここで定義するか、別途ファイルを作成
-// 例えば app/Helpers/CongestionHelper.php とし、namespace App\Helpers; をつける
-// class CongestionHelper {
-//     public static function getText($avg) {
-//         if ($avg === null || is_array($avg) || is_object($avg)) return '不明'; // 変更: is_array/is_objectのチェックを追加
-//         if ($avg >= 3.5) return '非常に混雑';
-//         if ($avg >= 2.5) return '混雑';
-//         if ($avg >= 1.5) return 'やや混雑';
-//         return '空いている';
-//     }
-// }
 
 class SpotController extends Controller
 {
@@ -77,13 +65,27 @@ class SpotController extends Controller
 
     public function store(Request $request)
     {
+        // ハニーポット: ボットはこの隠しフィールドを埋めてしまう
+        if (!empty($request->input('website'))) {
+            return redirect()->route('spots.thanks');
+        }
+
         $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'description' => 'nullable|string',
+            'description' => 'nullable|string|max:1000',
             'area' => 'nullable|string|max:255',
             'lat' => 'required|numeric|between:-90,90',
             'lng' => 'required|numeric|between:-180,180',
         ]);
+
+        if (ContentModeration::containsNgWord($validated['name'] . ' ' . ($validated['description'] ?? ''))) {
+            return back()->withErrors(['name' => '投稿内容に使用できない文字列が含まれています。'])->withInput();
+        }
+
+        $ipHash = ContentModeration::clientIpHash($request);
+        if (ContentModeration::isTooSoon("spot-create:{$ipHash}", 30)) {
+            return back()->withErrors(['name' => '投稿間隔が短すぎます。しばらく待ってから再度お試しください。'])->withInput();
+        }
 
         Spot::create($validated);
 
@@ -126,6 +128,11 @@ class SpotController extends Controller
      */
     public function reportCongestion(Request $request, Spot $spot)
     {
+        $ipHash = ContentModeration::clientIpHash($request);
+        if (ContentModeration::isTooSoon("congestion:{$spot->id}:{$ipHash}", 60)) {
+            return response()->json(['error' => '報告間隔が短すぎます。しばらく待ってから再度お試しください。'], 429);
+        }
+
         $validated = $request->validate([
             'level' => 'required|in:empty,slightly_crowded,crowded,very_crowded',
         ]);
@@ -148,11 +155,28 @@ class SpotController extends Controller
     /**
      * 喫煙所に「いいね！」を追加する
      */
-    public function like(Spot $spot)
+    public function like(Request $request, Spot $spot)
     {
+        $ipHash = ContentModeration::clientIpHash($request);
+        if (ContentModeration::isTooSoon("like:{$spot->id}:{$ipHash}", 60)) {
+            return response()->json(['error' => 'いいね！は少し時間を空けてから再度お試しください。'], 429);
+        }
+
         $spot->increment('likes_count');
         $spot->refresh();
 
         return response()->json(['likes_count' => $spot->likes_count]);
+    }
+
+    /**
+     * 全喫煙所ページを含むsitemap.xmlを動的に生成する
+     */
+    public function sitemap()
+    {
+        $spots = Spot::select('id', 'updated_at')->get();
+
+        $xml = view('sitemap', compact('spots'))->render();
+
+        return response($xml, 200)->header('Content-Type', 'application/xml');
     }
 }

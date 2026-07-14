@@ -6,7 +6,7 @@
 @push('structured-data')
 <script type="application/ld+json">
 {!! json_encode([
-  '@context' => 'https://schema.org',
+  '@@context' => 'https://schema.org',
   '@type' => 'WebSite',
   'name' => config('app.name'),
   'url' => url('/'),
@@ -15,7 +15,7 @@
 </script>
 <script type="application/ld+json">
 {!! json_encode([
-  '@context' => 'https://schema.org',
+  '@@context' => 'https://schema.org',
   '@type' => 'ItemList',
   'itemListElement' => $spots->take(50)->values()->map(function ($spot, $i) {
       return [

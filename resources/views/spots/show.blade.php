@@ -6,7 +6,7 @@
 @push('structured-data')
 <script type="application/ld+json">
 {!! json_encode([
-  '@context' => 'https://schema.org',
+  '@@context' => 'https://schema.org',
   '@type' => 'BreadcrumbList',
   'itemListElement' => [
       ['@type' => 'ListItem', 'position' => 1, 'name' => config('app.name'), 'item' => url('/')],
@@ -16,7 +16,7 @@
 </script>
 <script type="application/ld+json">
 {!! json_encode(array_filter([
-  '@context' => 'https://schema.org',
+  '@@context' => 'https://schema.org',
   '@type' => 'Place',
   'name' => $spot->name,
   'description' => $spot->description,

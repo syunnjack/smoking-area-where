@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Helpers\CongestionHelper;
 use App\Support\ContentModeration;
+use App\Support\LineMessaging;
 use Illuminate\Http\Request;
 use App\Models\Spot;
 
@@ -140,6 +142,8 @@ class SpotController extends Controller
         $levelMap = ['empty' => 1, 'slightly_crowded' => 2, 'crowded' => 3, 'very_crowded' => 4];
         $numericLevel = $levelMap[$validated['level']];
 
+        $previousBucket = CongestionHelper::getText($spot->average_congestion);
+
         $reports = json_decode($spot->congestion_reports ?? '[]', true);
         $reports[] = $numericLevel;
 
@@ -149,7 +153,31 @@ class SpotController extends Controller
         $spot->average_congestion = round($average, 2);
         $spot->save();
 
+        $newBucket = CongestionHelper::getText($spot->average_congestion);
+        if ($newBucket !== $previousBucket) {
+            $this->notifyFavoritesOfCongestionChange($spot, $newBucket);
+        }
+
         return response()->json(['average_congestion' => $spot->average_congestion]);
+    }
+
+    /**
+     * お気に入り登録しているLINEユーザーに混雑度の変化を通知する
+     */
+    private function notifyFavoritesOfCongestionChange(Spot $spot, string $newBucket): void
+    {
+        $spot->loadMissing('favorites.lineUser');
+
+        foreach ($spot->favorites as $favorite) {
+            if (! $favorite->lineUser) {
+                continue;
+            }
+
+            LineMessaging::push(
+                $favorite->lineUser->line_user_id,
+                "「{$spot->name}」の混雑状況が「{$newBucket}」に変わりました。"
+            );
+        }
     }
 
     /**

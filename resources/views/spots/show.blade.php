@@ -65,6 +65,21 @@
             </div>
             <p id="congestionMessage" class="text-success small"></p>
 
+            {{-- LINE通知登録 --}}
+            @php
+                $isFavorited = session('line_user_local_id')
+                    ? \App\Models\Favorite::where('line_user_id', session('line_user_local_id'))->where('spot_id', $spot->id)->exists()
+                    : false;
+            @endphp
+            <form method="POST" action="{{ route('spots.favorite.toggle', $spot) }}" class="mb-4">
+                @csrf
+                @if ($isFavorited)
+                    <button type="submit" class="btn btn-outline-secondary">🔕 通知をやめる</button>
+                @else
+                    <button type="submit" class="btn btn-line">🔔 混雑度が変わったらLINEで通知を受け取る</button>
+                @endif
+            </form>
+
             {{-- いいね！機能 (Bootstrap ボタン) --}}
             <div class="d-flex align-items-center mt-4 mb-4">
                 <button id="likeButton" data-spot-id="{{ $spot->id }}" class="btn btn-primary me-2">

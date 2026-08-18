@@ -35,8 +35,12 @@ jobs:
           delete_remote_files: false
 
       # public/ しか送っていなかったため、blade を直してもデプロイでは反映
-      # されなかった（sitemap の500がその例）。アプリ本体は public_html の親に
-      # 置かれている（public/index.php が ../vendor/autoload.php を読んでいる）。
+      # されなかった（sitemap の500がその例）。
+      #
+      # サーバ上の構成は以下。public_html は app/public へのシンボリックリンクで、
+      # Laravel 本体は <ドメイン>/app/ に置かれている。
+      #   ~/kitsuenjo-doko.jp/app/            ← リポジトリのルート相当
+      #   ~/kitsuenjo-doko.jp/public_html  -> app/public
       #
       # 消す操作は一切しない。views の更新だけを届ける。
       # Blade はコンパイル済みビューと元ファイルの更新時刻を比べるので、
@@ -52,6 +56,6 @@ jobs:
           port: 10022
           ssh_private_key: ${{ secrets.SSH_PRIVATE_KEY }}
           local_path: './resources/*'
-          remote_path: '/home/xs501620/kitsuenjo-doko.jp/resources/'
+          remote_path: '/home/xs501620/kitsuenjo-doko.jp/app/resources/'
           sftp_only: true
           delete_remote_files: false

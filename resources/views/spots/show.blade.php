@@ -76,7 +76,12 @@
                 @if ($isFavorited)
                     <button type="submit" class="btn btn-outline-secondary">🔕 通知をやめる</button>
                 @else
+                    {{-- LINEの認証情報が未設定のうちは、押すとLINE側でエラーになるので出さない --}}
+                    @if (config('services.line.login_channel_id'))
                     <button type="submit" class="btn btn-line">🔔 混雑度が変わったらLINEで通知を受け取る</button>
+                    @else
+                      <button type="button" class="btn btn-secondary" disabled>🔔 混雑度が変わったらLINEで通知を受け取る（準備中）</button>
+                    @endif
                 @endif
             </form>
 

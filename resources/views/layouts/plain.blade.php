@@ -62,6 +62,18 @@
 
   @yield('content')
 
+  {{-- 掲載データは OpenStreetMap から取り込んでいる。ODbL 1.0 は出典表示を求めている。 --}}
+  <footer class="border-top mt-5 py-4">
+    <div class="container small text-muted">
+      <p class="mb-1">
+        掲載している喫煙所の情報の一部は
+        <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>
+        の提供データ（&copy; OpenStreetMap contributors, ODbL 1.0）を利用しています。
+      </p>
+      <p class="mb-0">設置状況は変わることがあります。現地の掲示に従ってください。</p>
+    </div>
+  </footer>
+
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   @yield('scripts')
 </body>

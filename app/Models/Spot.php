@@ -12,6 +12,9 @@ class Spot extends Model
     protected $fillable = [
         'name',
         'description',
+        'address',
+        'facility_type',
+        'opening_hours',
         'lat',
         'lng',
         'area',
@@ -20,6 +23,8 @@ class Spot extends Model
         'average_congestion',
         'views',
         'likes_count',
+        'source',
+        'source_ref',
     ];
 
     protected $casts = [

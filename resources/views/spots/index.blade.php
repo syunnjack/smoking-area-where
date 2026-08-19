@@ -1,7 +1,16 @@
 @extends('layouts.plain')
 
-@section('title', config('app.name') . ' | 近くの喫煙所を地図から探す・投稿する')
-@section('description', '全国の喫煙所を地図から検索できる投稿型マップです。エリア・混雑度で絞り込み、現在地から近い順や人気順で表示。新しい喫煙所は誰でも匿名で投稿できます。')
+@php
+    $pageTitle = $area
+        ? $area . 'の喫煙所' . number_format($total) . 'か所｜' . config('app.name')
+        : config('app.name') . ' | 近くの喫煙所を地図から探す・投稿する';
+    $pageDescription = $area
+        ? $area . 'の喫煙所' . number_format($total) . 'か所を市区町村別に地図と一覧で確認できます。混雑度と口コミは利用者の投稿です。'
+        : '全国' . number_format($total) . 'か所の喫煙所を地図から探せます。都道府県から絞り込めるほか、混雑度の報告や新しい喫煙所の投稿も匿名でできます。';
+@endphp
+
+@section('title', $pageTitle)
+@section('description', $pageDescription)
 
 @push('structured-data')
 <script type="application/ld+json">
@@ -72,6 +81,25 @@
     </div>
   </form>
 
+  @if($area)
+    <nav aria-label="パンくず" class="small mb-2">
+      <a href="{{ route('spots.index') }}">喫煙所どこ</a>
+      <span class="text-muted mx-1">/</span><span class="text-muted">{{ $area }}</span>
+    </nav>
+  @endif
+
+  @if($areaCounts->isNotEmpty())
+    <h2 class="h6">都道府県から探す</h2>
+    <p class="d-flex flex-wrap gap-2 mb-4">
+      @foreach($areaCounts as $row)
+        <a href="{{ route('spots.area', $row['slug']) }}"
+           class="btn btn-sm {{ $areaSlug === $row['slug'] ? 'btn-primary' : 'btn-outline-secondary' }}">
+          {{ $row['area'] }} <span class="text-muted">{{ number_format($row['total']) }}</span>
+        </a>
+      @endforeach
+    </p>
+  @endif
+
   {{-- 地図と投稿一覧 --}}
   <div class="row">
     <div class="col-lg-7 mb-4">
@@ -85,8 +113,12 @@
             <div class="card-body">
               <h3 class="card-title h6 d-flex justify-content-between mb-1">
                 <a href="{{url("/spots/{$spot->id}")}}" class="text-decoration-none fw-semibold">
-                {{ $spot->name }}
-                <span class="badge bg-secondary">{{ $spot->area ?? '未設定' }}</span>
+                {{ $spot->display_name }}
+                @if($spot->area_slug)
+                  <a href="{{ route('spots.area', $spot->area_slug) }}" class="badge bg-secondary text-decoration-none">{{ $spot->area }}</a>
+                @else
+                  <span class="badge bg-secondary">未設定</span>
+                @endif
               </h3>
               <p class="mb-1 text-muted small">{{ $spot->description }}</p>
               <small class="text-muted">混雑度：{{ \App\Helpers\CongestionHelper::getText($spot->average_congestion) }} ／ {{ $spot->created_at->diffForHumans() }}</small>
@@ -96,9 +128,21 @@
           <p class="text-muted">該当するスポットがありません。</p>
         @endforelse
       </div>
+
+      @if($spots instanceof \Illuminate\Contracts\Pagination\Paginator)
+        <div class="d-flex justify-content-center mt-3">
+          {{ $spots->onEachSide(1)->links() }}
+        </div>
+      @endif
     </div>
   </div>
 </div>
+<p class="container text-muted small mt-4">
+  喫煙所の位置は OpenStreetMap のデータをもとにしています（© OpenStreetMap contributors、ODbL 1.0）。
+  市区町村名は座標から国土地理院の地図データで補っています。
+  混雑度と口コミは利用者の投稿で、当サイトでは内容を確認していません。
+  喫煙の可否や利用時間は現地の表示に従ってください。
+</p>
 @endsection
 
 @section('scripts')

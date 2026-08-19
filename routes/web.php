@@ -62,6 +62,9 @@ Route::view('/thanks', 'spots.thanks')->name('spots.thanks'); // 投稿完了ペ
 Route::view('/about', 'about')->name('about');
 
 // SEO用ファイル
+Route::get('/area/{areaSlug}', [SpotController::class, 'area'])
+    ->whereAlpha('areaSlug')
+    ->name('spots.area');
 Route::get('/sitemap.xml', [SpotController::class, 'sitemap'])->name('sitemap');
 
 // LINE連携（お気に入りスポットの混雑度通知）

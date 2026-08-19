@@ -12,13 +12,22 @@
 
   <title>@yield('title', config('app.name') . ' | みんなで探す・投稿する喫煙所マップ')</title>
   <meta name="description" content="@yield('description', '近くの喫煙所を地図から探せる投稿型マップです。混雑度・いいね・口コミをリアルタイムで確認でき、新しい喫煙所は誰でも匿名で投稿できます。')">
-  <link rel="canonical" href="{{ url()->current() }}">
+  @php
+      // url()->current() はクエリを落とすため、絞り込み結果が一覧の正規URLを
+      // 名乗ってしまう。内容が変わる条件だけを残す。
+      $canonicalQuery = array_filter(
+          request()->only(['area', 'congestion', 'page']),
+          fn ($value) => $value !== null && $value !== '' && $value !== '1'
+      );
+      $canonicalUrl = url()->current() . ($canonicalQuery ? '?' . http_build_query($canonicalQuery) : '');
+  @endphp
+  <link rel="canonical" href="{{ $canonicalUrl }}">
 
   <meta property="og:site_name" content="{{ config('app.name') }}">
   <meta property="og:type" content="website">
   <meta property="og:title" content="@yield('title', config('app.name') . ' | みんなで探す・投稿する喫煙所マップ')">
   <meta property="og:description" content="@yield('description', '近くの喫煙所を地図から探せる投稿型マップです。混雑度・いいね・口コミをリアルタイムで確認でき、新しい喫煙所は誰でも匿名で投稿できます。')">
-  <meta property="og:url" content="{{ url()->current() }}">
+  <meta property="og:url" content="{{ $canonicalUrl }}">
   <meta property="og:locale" content="ja_JP">
 
   <meta name="twitter:card" content="summary">

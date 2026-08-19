@@ -1,6 +1,6 @@
 @extends('layouts.plain')
 
-@section('title', $spot->name . ' の喫煙所情報・混雑度・口コミ | ' . config('app.name'))
+@section('title', $spot->display_name . ' の喫煙所情報・混雑度・口コミ | ' . config('app.name'))
 @section('description', $spot->name . '（' . ($spot->area ?? '喫煙所') . '）の場所・混雑度・利用者の口コミを確認できます。' . mb_substr($spot->description ?? '', 0, 60))
 
 @push('structured-data')
@@ -35,7 +35,7 @@
     <div class="card shadow-sm">
         <div class="card-body p-4">
             {{-- スポット情報 --}}
-            <h1 class="h3 fw-bold mb-3">{{ $spot->name }}</h1>
+            <h1 class="h3 fw-bold mb-3">{{ $spot->display_name }}</h1>
             <p class="text-muted mb-2">{{ $spot->description }}</p>
             <p class="text-secondary small mb-2">緯度: {{ $spot->lat }}, 経度: {{ $spot->lng }}</p>
             @if($spot->area)

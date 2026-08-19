@@ -56,7 +56,68 @@ class SpotController extends Controller
 
         $areas = Spot::distinct()->pluck('area'); // エリアフィルター用
 
-        return view('spots.index', compact('spots', 'areas'));
+        // 全件を1ページに描くとHTMLが数百KBになるため、表示は先頭から一定数に絞る。
+        // 地域ごとの一覧は都道府県ページ（/area/{ローマ字}）で見てもらう。
+        $total = $spots->count();
+        $spots = $spots->take(self::LIST_LIMIT)->values();
+
+        return view('spots.index', [
+            'spots' => $spots,
+            'areas' => $areas,
+            'areaCounts' => $this->areaCounts(),
+            'area' => null,
+            'areaSlug' => null,
+            'total' => $total,
+        ]);
+    }
+
+    /** トップに出す件数。 */
+    private const LIST_LIMIT = 60;
+
+    public function area(string $areaSlug)
+    {
+        $area = Spot::areaForSlug($areaSlug);
+
+        if ($area === null) {
+            abort(404);
+        }
+
+        $spots = Spot::where('area', $area)
+            ->orderBy('city')
+            ->orderBy('town')
+            ->paginate(100)
+            ->withQueryString();
+
+        if ($spots->total() === 0) {
+            abort(404);
+        }
+
+        return view('spots.index', [
+            'spots' => $spots,
+            'areas' => Spot::distinct()->pluck('area'),
+            'areaCounts' => $this->areaCounts(),
+            'area' => $area,
+            'areaSlug' => $areaSlug,
+            'total' => $spots->total(),
+        ]);
+    }
+
+    /** 都道府県ごとの掲載件数（多い順）。 */
+    private function areaCounts()
+    {
+        return Spot::query()
+            ->selectRaw('area, COUNT(*) as total')
+            ->whereNotNull('area')
+            ->groupBy('area')
+            ->orderByDesc('total')
+            ->get()
+            ->map(fn ($row) => [
+                'area' => $row->area,
+                'slug' => Spot::slugForArea($row->area),
+                'total' => (int) $row->total,
+            ])
+            ->filter(fn (array $row) => $row['slug'] !== null)
+            ->values();
     }
 
     public function create()
@@ -203,7 +264,15 @@ class SpotController extends Controller
     {
         $spots = Spot::select('id', 'updated_at')->get();
 
-        $xml = view('sitemap', compact('spots'))->render();
+        $areaSlugs = Spot::query()
+            ->whereNotNull('area')
+            ->distinct()
+            ->pluck('area')
+            ->map(fn (string $area) => Spot::slugForArea($area))
+            ->filter()
+            ->values();
+
+        $xml = view('sitemap', compact('spots', 'areaSlugs'))->render();
 
         return response($xml, 200)->header('Content-Type', 'application/xml');
     }

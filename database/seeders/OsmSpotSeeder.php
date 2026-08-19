@@ -40,11 +40,12 @@ class OsmSpotSeeder extends Seeder
         $imported = 0;
 
         // SQLite は1文あたりのプレースホルダ数に上限がある（古いビルドは999）。
-        $columns = 11;
+        $columns = 13;
         $chunkSize = max(1, intdiv(900, $columns));
 
         // キーは短縮してある:
         //   t=種別(node/way) i=OSMのID n=名前 f=屋内/屋外 a=都道府県
+        //   c=市区町村 tn=町名（scripts/build-spot-data.py が座標から付ける）
         //   ad=住所 h=利用時間 lat/lng=座標
         foreach (array_chunk($rows, $chunkSize) as $chunk) {
             $records = [];
@@ -60,6 +61,8 @@ class OsmSpotSeeder extends Seeder
                     'name' => $row['n'],
                     'facility_type' => $row['f'] ?? null,
                     'area' => $row['a'] ?? null,
+                    'city' => $row['c'] ?? null,
+                    'town' => $row['tn'] ?? null,
                     'address' => $row['ad'] ?? null,
                     'opening_hours' => $row['h'] ?? null,
                     'lat' => (string) $row['lat'],
@@ -77,7 +80,7 @@ class OsmSpotSeeder extends Seeder
                 Spot::upsert(
                     $records,
                     ['source', 'source_ref'],
-                    ['name', 'facility_type', 'area', 'address', 'opening_hours', 'lat', 'lng', 'updated_at'],
+                    ['name', 'facility_type', 'area', 'city', 'town', 'address', 'opening_hours', 'lat', 'lng', 'updated_at'],
                 );
             });
 

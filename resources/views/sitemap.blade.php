@@ -12,6 +12,12 @@
     <loc>{{ url('/create') }}</loc>
     <priority>0.5</priority>
   </url>
+@foreach ($areaSlugs as $areaSlug)
+  <url>
+    <loc>{{ route('spots.area', $areaSlug) }}</loc>
+    <priority>0.7</priority>
+  </url>
+@endforeach
 @foreach ($spots as $spot)
   <url>
     <loc>{{ url("/spots/{$spot->id}") }}</loc>
